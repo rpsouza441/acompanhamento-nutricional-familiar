@@ -49,14 +49,20 @@ Endpoints iniciais:
 - `PUT /api/usuarios/{id}`
 - `PATCH /api/usuarios/{id}/ativo`
 - `POST /api/planos/importar`
+- `POST /api/planos/manual`
 - `GET /api/planos?usuarioId=`
 - `GET /api/planos/{id}`
+- `PUT /api/planos/{id}/manual`
 - `PATCH /api/planos/{id}/ativar`
 - `GET /api/registros?usuarioId=&data=`
 - `PUT /api/registros/{id}`
 - `POST /api/registros/{id}/refeicoes/{refeicaoId}/concluir`
 - `POST /api/registros/{id}/refeicoes/{refeicaoId}/alimentos`
 - `DELETE /api/registros/{registroId}/alimentos/{alimentoId}`
+- `GET /api/conquistas/usuario/{id}`
+- `POST /api/conquistas/calcular/{usuarioId}`
+- `GET /api/relatorios?usuarioId=&inicio=&fim=`
+- `GET /api/relatorios/pdf?usuarioId=&inicio=&fim=`
 
 ## Requisitos Locais
 
@@ -67,16 +73,32 @@ Endpoints iniciais:
 
 ## Configuracao
 
-Crie um arquivo `.env` na raiz quando o Docker Compose estiver disponivel:
+Crie um arquivo `.env` na raiz a partir do exemplo:
 
-```env
-DB_ROOT_PASSWORD=nutritracker_root_2024
-DB_USER=nutritracker
-DB_PASSWORD=nutritracker_pass_2024
-JWT_SECRET=change-this-secret-to-a-strong-256-bit-value
+```bash
+cp .env.example .env
 ```
 
-O backend tambem aceita variaveis de ambiente Spring:
+Edite o `JWT_SECRET` antes de usar fora do ambiente local.
+
+## Rodando com Docker Compose
+
+Nesta etapa o Compose sobe MariaDB, backend e Nginx. O frontend sera adicionado depois.
+
+```bash
+docker compose up -d --build
+```
+
+Acessos:
+
+```text
+API via Nginx: http://localhost/api
+Swagger via Nginx: http://localhost/api/swagger-ui.html
+Backend direto: http://localhost:8080
+Swagger direto: http://localhost:8080/swagger-ui.html
+```
+
+O backend tambem aceita variaveis de ambiente Spring quando executado fora do Compose:
 
 ```env
 SPRING_DATASOURCE_URL=jdbc:mariadb://localhost:3306/nutritracker
@@ -115,13 +137,6 @@ Swagger UI:
 http://localhost:8080/swagger-ui.html
 ```
 
-Quando o Nginx do Docker Compose for adicionado, o acesso esperado sera:
-
-```text
-http://localhost/api
-http://localhost/api/swagger-ui.html
-```
-
 ## Credencial Inicial
 
 O seed em `database/02-sample-data.sql` cria:
@@ -158,15 +173,18 @@ Concluido nesta etapa:
 - Autenticacao JWT.
 - CRUD administrativo inicial de usuarios com soft-delete.
 - Importacao de planos por JSON.
+- Cadastro e edicao manual de planos nutricionais.
 - Registro diario basico.
+- Conquistas com calculo agendado e sob demanda.
+- Relatorios JSON.
+- Relatorio PDF server-side com grafico de agua.
 - Schema MariaDB inicial.
 - Testes unitarios iniciais.
+- Docker Compose para MariaDB, backend e Nginx.
+- Maven Wrapper no backend.
 
 Pendencias principais:
 
-- Docker Compose completo.
+- Adicionar o servico frontend ao Docker Compose quando o React for criado.
 - Frontend React.
-- Cadastro manual de plano no backend.
-- Logica completa de conquistas.
-- Relatorios JSON e PDF.
 - Testes de integracao com banco.

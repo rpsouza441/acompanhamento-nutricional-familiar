@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS alimentos_consumidos (
   INDEX idx_refeicao (refeicao_registrada_id),
   INDEX idx_alimentos_opcao (opcao_id),
   FOREIGN KEY (refeicao_registrada_id) REFERENCES refeicoes_registradas(id),
-  FOREIGN KEY (opcao_id) REFERENCES opcoes_alimento(id)
+  FOREIGN KEY (opcao_id) REFERENCES opcoes_alimento(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS conquistas (

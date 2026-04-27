@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface RegistroDiarioRepository extends JpaRepository<RegistroDiario, Long> {
   Optional<RegistroDiario> findByUsuarioIdAndDataRegistro(Long usuarioId, LocalDate dataRegistro);
 
+  List<RegistroDiario> findByUsuarioIdOrderByDataRegistroAsc(Long usuarioId);
+
   List<RegistroDiario> findByUsuarioIdAndDataRegistroBetweenOrderByDataRegistroAsc(
       Long usuarioId, LocalDate inicio, LocalDate fim);
 }
