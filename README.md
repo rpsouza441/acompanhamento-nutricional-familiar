@@ -31,6 +31,10 @@ Sistema de acompanhamento nutricional familiar para registrar consumo alimentar 
 │   ├── src/test/java/com/nutritracker/
 │   ├── pom.xml
 │   └── Dockerfile
+├── frontend/
+│   ├── src/
+│   ├── package.json
+│   └── Dockerfile
 ├── database/
 │   ├── 01-schema.sql
 │   └── 02-sample-data.sql
@@ -83,7 +87,7 @@ Edite o `JWT_SECRET` antes de usar fora do ambiente local.
 
 ## Rodando com Docker Compose
 
-Nesta etapa o Compose sobe MariaDB, backend e Nginx. O frontend sera adicionado depois.
+O Compose sobe MariaDB, backend, frontend e Nginx.
 
 ```bash
 docker compose up -d --build
@@ -92,10 +96,11 @@ docker compose up -d --build
 Acessos:
 
 ```text
-API via Nginx: http://localhost/api
-Swagger via Nginx: http://localhost/api/swagger-ui.html
-Backend direto: http://localhost:8080
-Swagger direto: http://localhost:8080/swagger-ui.html
+Frontend: http://localhost:18880
+API via Nginx: http://localhost:18880/api
+Swagger via Nginx: http://localhost:18880/api/swagger-ui.html
+Backend direto: http://localhost:18080
+Swagger direto: http://localhost:18080/swagger-ui.html
 ```
 
 O backend tambem aceita variaveis de ambiente Spring quando executado fora do Compose:
@@ -116,6 +121,39 @@ cd backend
 mvn test
 ```
 
+Ou usando o Maven Wrapper:
+
+```bash
+cd backend
+./mvnw test
+```
+
+## Rodando o Frontend
+
+Para desenvolvimento local:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Variavel de API para o frontend:
+
+```env
+VITE_API_BASE_URL=/api
+VITE_API_PROXY_TARGET=http://localhost:18080
+```
+
+Para usar o backend em outro host durante desenvolvimento, ajuste `VITE_API_PROXY_TARGET`, por exemplo `http://192.168.22.245:8880`.
+
+Build de producao:
+
+```bash
+cd frontend
+npm run build
+```
+
 ## Rodando o Backend
 
 Com MariaDB disponivel e o schema aplicado:
@@ -128,13 +166,13 @@ mvn spring-boot:run
 A API sobe em:
 
 ```text
-http://localhost:8080
+http://localhost:18080
 ```
 
 Swagger UI:
 
 ```text
-http://localhost:8080/swagger-ui.html
+http://localhost:18080/swagger-ui.html
 ```
 
 ## Credencial Inicial
@@ -182,9 +220,8 @@ Concluido nesta etapa:
 - Testes unitarios iniciais.
 - Docker Compose para MariaDB, backend e Nginx.
 - Maven Wrapper no backend.
+- Frontend React com Vite e TailwindCSS.
 
 Pendencias principais:
 
-- Adicionar o servico frontend ao Docker Compose quando o React for criado.
-- Frontend React.
 - Testes de integracao com banco.
