@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #151c27;
+  background: #f9f9ff;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    linear-gradient(180deg, rgba(216, 246, 220, 0.45), transparent 260px),
+    #f9f9ff;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.water-track {
+  background: linear-gradient(90deg, #ba1a1a 0%, #f1b62d 52%, #096430 100%);
+}
+
+@layer components {
+  .surface {
+    @apply rounded-lg border border-line bg-white shadow-soft;
+  }
+
+  .field {
+    @apply w-full rounded-md border border-line bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-forest-600 focus:ring-2 focus:ring-forest-100;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-md bg-forest-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-forest-700 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-line bg-white px-4 py-2 text-sm font-semibold text-ink transition hover:border-forest-600 hover:text-forest-700 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .label {
+    @apply text-xs font-semibold uppercase tracking-wide text-graphite;
+  }
+}
