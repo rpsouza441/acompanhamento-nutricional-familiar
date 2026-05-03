@@ -19,6 +19,7 @@ import com.nutritracker.repository.OpcaoAlimentoRepository;
 import com.nutritracker.repository.PlanoNutricionalRepository;
 import com.nutritracker.repository.RefeicaoRepository;
 import com.nutritracker.repository.UsuarioRepository;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,7 +52,8 @@ class PlanoImportacaoServiceTest {
 
   @Test
   void importarPersistePlanoComRefeicoesCategoriasEOpcoes() {
-    when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuario()));
+    when(usuarioRepository.findByEmailIgnoreCase("maria@example.com")).thenReturn(Optional.of(usuario()));
+    when(planoRepository.findByUsuarioIdOrderByCriadoEmDesc(1L)).thenReturn(List.of());
     when(planoRepository.save(any(PlanoNutricional.class)))
         .thenAnswer(
             invocation -> {
@@ -75,7 +77,7 @@ class PlanoImportacaoServiceTest {
             });
     when(opcaoRepository.save(any(OpcaoAlimento.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-    var response = service.importar(1L, arquivo("plano.json", jsonValido()));
+    var response = service.importar("maria@example.com", arquivo("plano.json", jsonValido()));
 
     assertThat(response.plano().id()).isEqualTo(10L);
     assertThat(response.plano().metaAguaDiariaMl()).isEqualTo(3000);
@@ -109,7 +111,7 @@ class PlanoImportacaoServiceTest {
         }
         """;
 
-    assertThatThrownBy(() -> service.importar(1L, arquivo("invalido.json", json)))
+    assertThatThrownBy(() -> service.importar("maria@example.com", arquivo("invalido.json", json)))
         .isInstanceOfSatisfying(
             ValidationException.class,
             exception ->

@@ -2,7 +2,7 @@ INSERT INTO usuarios (nome, email, senha_hash, role, ativo)
 VALUES (
   'Administrador',
   'admin@nutritracker.local',
-  '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+  '$2a$10$M4xn8ebnunOYVpXe4F7L/.ksIDpGwJzRshnLODokkIQt5qDWbucQi',
   'ADMIN',
   TRUE
 )

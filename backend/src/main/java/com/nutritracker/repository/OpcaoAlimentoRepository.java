@@ -6,4 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface OpcaoAlimentoRepository extends JpaRepository<OpcaoAlimento, Long> {
   List<OpcaoAlimento> findByCategoriaId(Long categoriaId);
+
+  List<OpcaoAlimento> findByCategoriaIdOrderByIdAsc(Long categoriaId);
 }

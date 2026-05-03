@@ -6,4 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface CategoriaRefeicaoRepository extends JpaRepository<CategoriaRefeicao, Long> {
   List<CategoriaRefeicao> findByRefeicaoId(Long refeicaoId);
+
+  List<CategoriaRefeicao> findByRefeicaoIdOrderByIdAsc(Long refeicaoId);
 }

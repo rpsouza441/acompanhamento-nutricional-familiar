@@ -55,6 +55,9 @@ public class PlanoManualService {
 
     PlanoNutricional plano = new PlanoNutricional();
     plano.setUsuario(usuario);
+    if (request.ativo() == null || request.ativo()) {
+      desativarPlanosAtivos(usuario.getId());
+    }
     aplicarDados(plano, request);
     plano = planoRepository.save(plano);
     Contagem contagem = salvarEstrutura(plano, request);
@@ -75,6 +78,9 @@ public class PlanoManualService {
               .orElseThrow(() -> new BusinessException("Usuario nao encontrado"));
       plano.setUsuario(usuario);
     }
+    if (request.ativo() == null || request.ativo()) {
+      desativarPlanosAtivos(plano.getUsuario().getId(), plano.getId());
+    }
     aplicarDados(plano, request);
     plano = planoRepository.save(plano);
     removerEstrutura(plano.getId());
@@ -90,6 +96,21 @@ public class PlanoManualService {
     plano.setDataPrescricao(request.dataPrescricao());
     plano.setAtivo(request.ativo() == null || request.ativo());
     plano.setJsonOriginal(toJson(request));
+  }
+
+  private void desativarPlanosAtivos(Long usuarioId) {
+    desativarPlanosAtivos(usuarioId, null);
+  }
+
+  private void desativarPlanosAtivos(Long usuarioId, Long planoIgnoradoId) {
+    planoRepository.findByUsuarioIdOrderByCriadoEmDesc(usuarioId).stream()
+        .filter(PlanoNutricional::isAtivo)
+        .filter(plano -> planoIgnoradoId == null || !plano.getId().equals(planoIgnoradoId))
+        .forEach(
+            plano -> {
+              plano.setAtivo(false);
+              planoRepository.save(plano);
+            });
   }
 
   private Contagem salvarEstrutura(PlanoNutricional plano, PlanoManualRequest request) {

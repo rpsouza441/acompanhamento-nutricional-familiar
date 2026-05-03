@@ -53,7 +53,7 @@ public class PlanoImportacaoService {
   }
 
   @Transactional
-  public ImportacaoPlanoResponse importar(Long usuarioId, MultipartFile arquivo) {
+  public ImportacaoPlanoResponse importar(String emailUsuario, MultipartFile arquivo) {
     if (arquivo == null || arquivo.isEmpty()) {
       throw new BusinessException("Arquivo JSON e obrigatorio");
     }
@@ -63,8 +63,9 @@ public class PlanoImportacaoService {
 
     var usuario =
         usuarioRepository
-            .findById(usuarioId)
+            .findByEmailIgnoreCase(emailUsuario)
             .orElseThrow(() -> new BusinessException("Usuario nao encontrado"));
+    desativarPlanosAtivos(usuario.getId());
 
     JsonNode configuracoes = root.path("configuracoes");
     PlanoNutricional plano = new PlanoNutricional();
@@ -116,6 +117,16 @@ public class PlanoImportacaoService {
     }
 
     return new ImportacaoPlanoResponse(PlanoResponse.from(plano), refeicoes, categorias, opcoes);
+  }
+
+  private void desativarPlanosAtivos(Long usuarioId) {
+    planoRepository.findByUsuarioIdOrderByCriadoEmDesc(usuarioId).stream()
+        .filter(PlanoNutricional::isAtivo)
+        .forEach(
+            plano -> {
+              plano.setAtivo(false);
+              planoRepository.save(plano);
+            });
   }
 
   private JsonNode parse(MultipartFile arquivo) {

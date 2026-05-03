@@ -12,9 +12,12 @@ public record RefeicaoRegistradaResponse(
     LocalTime horarioRealizado,
     boolean concluida,
     String observacoes,
+    List<CategoriaRefeicaoResponse> categorias,
     List<AlimentoConsumidoResponse> alimentos) {
   public static RefeicaoRegistradaResponse from(
-      RefeicaoRegistrada refeicao, List<AlimentoConsumidoResponse> alimentos) {
+      RefeicaoRegistrada refeicao,
+      List<CategoriaRefeicaoResponse> categorias,
+      List<AlimentoConsumidoResponse> alimentos) {
     return new RefeicaoRegistradaResponse(
         refeicao.getId(),
         refeicao.getRefeicao().getId(),
@@ -23,6 +26,7 @@ public record RefeicaoRegistradaResponse(
         refeicao.getHorarioRealizado(),
         refeicao.isConcluida(),
         refeicao.getObservacoes(),
+        categorias,
         alimentos);
   }
 }

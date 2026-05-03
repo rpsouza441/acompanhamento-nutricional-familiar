@@ -5,10 +5,12 @@ import com.nutritracker.dto.PlanoManualRequest;
 import com.nutritracker.dto.PlanoManualResponse;
 import com.nutritracker.dto.PlanoResponse;
 import com.nutritracker.exception.BusinessException;
+import com.nutritracker.model.PlanoNutricional;
 import com.nutritracker.repository.PlanoNutricionalRepository;
 import com.nutritracker.service.PlanoImportacaoService;
 import com.nutritracker.service.PlanoManualService;
 import jakarta.validation.Valid;
+import java.security.Principal;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -39,8 +41,8 @@ public class PlanoController {
 
   @PostMapping("/importar")
   public ImportacaoPlanoResponse importar(
-      @RequestParam Long usuarioId, @RequestParam("file") MultipartFile file) {
-    return importacaoService.importar(usuarioId, file);
+      @RequestParam("file") MultipartFile file, Principal principal) {
+    return importacaoService.importar(principal.getName(), file);
   }
 
   @PostMapping("/manual")
@@ -75,6 +77,14 @@ public class PlanoController {
         planoRepository
             .findById(id)
             .orElseThrow(() -> new BusinessException("Plano nao encontrado"));
+    planoRepository.findByUsuarioIdOrderByCriadoEmDesc(plano.getUsuario().getId()).stream()
+        .filter(PlanoNutricional::isAtivo)
+        .filter(item -> !item.getId().equals(plano.getId()))
+        .forEach(
+            item -> {
+              item.setAtivo(false);
+              planoRepository.save(item);
+            });
     plano.setAtivo(true);
     return PlanoResponse.from(planoRepository.save(plano));
   }

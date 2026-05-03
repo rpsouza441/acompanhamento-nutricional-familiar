@@ -2,7 +2,9 @@ package com.nutritracker.service;
 
 import com.nutritracker.dto.AlimentoConsumidoRequest;
 import com.nutritracker.dto.AlimentoConsumidoResponse;
+import com.nutritracker.dto.CategoriaRefeicaoResponse;
 import com.nutritracker.dto.ConcluirRefeicaoRequest;
+import com.nutritracker.dto.OpcaoAlimentoResponse;
 import com.nutritracker.dto.RegistroResponse;
 import com.nutritracker.dto.RegistroUpdateRequest;
 import com.nutritracker.dto.RefeicaoRegistradaResponse;
@@ -11,6 +13,7 @@ import com.nutritracker.model.AlimentoConsumido;
 import com.nutritracker.model.RefeicaoRegistrada;
 import com.nutritracker.model.RegistroDiario;
 import com.nutritracker.repository.AlimentoConsumidoRepository;
+import com.nutritracker.repository.CategoriaRefeicaoRepository;
 import com.nutritracker.repository.OpcaoAlimentoRepository;
 import com.nutritracker.repository.PlanoNutricionalRepository;
 import com.nutritracker.repository.RefeicaoRegistradaRepository;
@@ -29,6 +32,7 @@ public class RegistroService {
   private final RefeicaoRepository refeicaoRepository;
   private final RegistroDiarioRepository registroRepository;
   private final RefeicaoRegistradaRepository refeicaoRegistradaRepository;
+  private final CategoriaRefeicaoRepository categoriaRepository;
   private final OpcaoAlimentoRepository opcaoRepository;
   private final AlimentoConsumidoRepository alimentoRepository;
   private final ConquistaService conquistaService;
@@ -39,6 +43,7 @@ public class RegistroService {
       RefeicaoRepository refeicaoRepository,
       RegistroDiarioRepository registroRepository,
       RefeicaoRegistradaRepository refeicaoRegistradaRepository,
+      CategoriaRefeicaoRepository categoriaRepository,
       OpcaoAlimentoRepository opcaoRepository,
       AlimentoConsumidoRepository alimentoRepository,
       ConquistaService conquistaService) {
@@ -47,6 +52,7 @@ public class RegistroService {
     this.refeicaoRepository = refeicaoRepository;
     this.registroRepository = registroRepository;
     this.refeicaoRegistradaRepository = refeicaoRegistradaRepository;
+    this.categoriaRepository = categoriaRepository;
     this.opcaoRepository = opcaoRepository;
     this.alimentoRepository = alimentoRepository;
     this.conquistaService = conquistaService;
@@ -58,6 +64,7 @@ public class RegistroService {
         registroRepository
             .findByUsuarioIdAndDataRegistro(usuarioId, data)
             .orElseGet(() -> criarRegistro(usuarioId, data));
+    sincronizarComPlanoAtivo(registro);
     return toResponse(registro);
   }
 
@@ -82,10 +89,13 @@ public class RegistroService {
             .findByRegistroDiarioIdAndRefeicaoId(registroId, refeicaoId)
             .orElseThrow(() -> new BusinessException("Refeicao do registro nao encontrada"));
     ConcluirRefeicaoRequest payload =
-        request == null ? new ConcluirRefeicaoRequest(null, null) : request;
-    refeicao.setConcluida(true);
+        request == null ? new ConcluirRefeicaoRequest(true, null, null) : request;
+    boolean concluida = payload.concluida() == null || payload.concluida();
+    refeicao.setConcluida(concluida);
     refeicao.setHorarioRealizado(
-        payload.horarioRealizado() == null ? LocalTime.now() : payload.horarioRealizado());
+        concluida
+            ? (payload.horarioRealizado() == null ? LocalTime.now() : payload.horarioRealizado())
+            : null);
     refeicao.setObservacoes(payload.observacoes());
     refeicaoRegistradaRepository.save(refeicao);
     conquistaService.calcular(registro.getUsuario().getId());
@@ -154,6 +164,37 @@ public class RegistroService {
     return registro;
   }
 
+  private void sincronizarComPlanoAtivo(RegistroDiario registro) {
+    var planoAtivo =
+        planoRepository
+            .findFirstByUsuarioIdAndAtivoTrueOrderByCriadoEmDesc(registro.getUsuario().getId())
+            .orElse(null);
+    if (planoAtivo == null || planoAtivo.getId().equals(registro.getPlano().getId())) {
+      return;
+    }
+
+    var refeicoesRegistradas = refeicaoRegistradaRepository.findByRegistroDiarioId(registro.getId());
+    boolean possuiAlimentos =
+        refeicoesRegistradas.stream()
+            .anyMatch(refeicao -> !alimentoRepository.findByRefeicaoRegistradaId(refeicao.getId()).isEmpty());
+    if (possuiAlimentos) {
+      return;
+    }
+
+    for (var refeicaoRegistrada : refeicoesRegistradas) {
+      refeicaoRegistradaRepository.delete(refeicaoRegistrada);
+    }
+
+    registro.setPlano(planoAtivo);
+    registro = registroRepository.save(registro);
+    for (var refeicao : refeicaoRepository.findByPlanoIdOrderByOrdemAsc(planoAtivo.getId())) {
+      RefeicaoRegistrada registrada = new RefeicaoRegistrada();
+      registrada.setRegistroDiario(registro);
+      registrada.setRefeicao(refeicao);
+      refeicaoRegistradaRepository.save(registrada);
+    }
+  }
+
   private RegistroDiario buscarRegistro(Long id) {
     return registroRepository
         .findById(id)
@@ -169,7 +210,22 @@ public class RegistroService {
                       alimentoRepository.findByRefeicaoRegistradaId(refeicao.getId()).stream()
                           .map(AlimentoConsumidoResponse::from)
                           .toList();
-                  return RefeicaoRegistradaResponse.from(refeicao, alimentos);
+                  var categorias =
+                      categoriaRepository
+                          .findByRefeicaoIdOrderByIdAsc(refeicao.getRefeicao().getId())
+                          .stream()
+                          .map(
+                              categoria -> {
+                                var opcoes =
+                                    opcaoRepository
+                                        .findByCategoriaIdOrderByIdAsc(categoria.getId())
+                                        .stream()
+                                        .map(OpcaoAlimentoResponse::from)
+                                        .toList();
+                                return CategoriaRefeicaoResponse.from(categoria, opcoes);
+                              })
+                          .toList();
+                  return RefeicaoRegistradaResponse.from(refeicao, categorias, alimentos);
                 })
             .toList();
     return RegistroResponse.from(registro, refeicoes);
