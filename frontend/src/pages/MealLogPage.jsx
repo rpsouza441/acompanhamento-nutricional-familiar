@@ -1,4 +1,4 @@
-import { Check, Plus, Trash2 } from 'lucide-react';
+import { Check, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import PageHeader from '../components/PageHeader.jsx';
 import StateBlock from '../components/StateBlock.jsx';
@@ -11,8 +11,7 @@ const today = new Date().toISOString().slice(0, 10);
 export default function MealLogPage() {
   const { usuario } = useAuth();
   const [version, setVersion] = useState(0);
-  const [manual, setManual] = useState('');
-  const [quantidade, setQuantidade] = useState('');
+  const [drafts, setDrafts] = useState({});
   const { loading, data, error } = useAsync(
     () => api.get('/registros', { params: { usuarioId: usuario.id, data: today } }).then((r) => r.data),
     [usuario.id, version],
@@ -26,19 +25,45 @@ export default function MealLogPage() {
     setVersion((value) => value + 1);
   }
 
-  async function conclude(refeicaoId) {
-    await api.post(`/registros/${data.id}/refeicoes/${refeicaoId}/concluir`, {});
+  function draftFor(refeicaoId) {
+    return drafts[refeicaoId] || { manual: '', quantidade: '' };
+  }
+
+  function updateDraft(refeicaoId, field, value) {
+    setDrafts((current) => ({
+      ...current,
+      [refeicaoId]: {
+        ...draftFor(refeicaoId),
+        [field]: value,
+      },
+    }));
+  }
+
+  async function toggleConcluded(refeicao) {
+    await api.post(`/registros/${data.id}/refeicoes/${refeicao.refeicaoId}/concluir`, {
+      concluida: !refeicao.concluida,
+    });
     setVersion((value) => value + 1);
   }
 
   async function addManual(refeicaoId) {
-    if (!manual.trim()) return;
+    const draft = draftFor(refeicaoId);
+    if (!draft.manual.trim()) return;
     await api.post(`/registros/${data.id}/refeicoes/${refeicaoId}/alimentos`, {
-      descricaoManual: manual,
-      quantidadePersonalizada: quantidade,
+      descricaoManual: draft.manual,
+      quantidadePersonalizada: draft.quantidade,
     });
-    setManual('');
-    setQuantidade('');
+    setDrafts((current) => ({
+      ...current,
+      [refeicaoId]: { manual: '', quantidade: '' },
+    }));
+    setVersion((value) => value + 1);
+  }
+
+  async function addOption(refeicaoId, opcaoId) {
+    await api.post(`/registros/${data.id}/refeicoes/${refeicaoId}/alimentos`, {
+      opcaoId,
+    });
     setVersion((value) => value + 1);
   }
 
@@ -74,41 +99,108 @@ export default function MealLogPage() {
       </section>
 
       <section className="grid gap-4">
-        {data.refeicoes.map((refeicao) => (
-          <article key={refeicao.id} className="surface p-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="label">{refeicao.horarioSugerido || 'Horario livre'}</p>
-                <h2 className="text-lg font-bold">{refeicao.nome}</h2>
-                {refeicao.observacoes ? <p className="text-sm text-graphite">{refeicao.observacoes}</p> : null}
-              </div>
-              <button className="btn-primary" onClick={() => conclude(refeicao.refeicaoId)} disabled={refeicao.concluida}>
-                <Check className="h-4 w-4" />
-                {refeicao.concluida ? 'Realizada' : 'Marcar como realizada'}
-              </button>
-            </div>
+        {data.refeicoes.map((refeicao) => {
+          const draft = draftFor(refeicao.refeicaoId);
+          const selectedOptions = new Set(refeicao.alimentos.map((alimento) => alimento.opcaoId).filter(Boolean));
 
-            <div className="mt-4 grid gap-2">
-              {refeicao.alimentos.map((alimento) => (
-                <div key={alimento.id} className="flex items-center justify-between rounded-md bg-mist px-3 py-2 text-sm">
-                  <span>{alimento.descricao}</span>
-                  <button className="text-cranberry" onClick={() => removeAlimento(alimento.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+          return (
+            <article key={refeicao.id} className="surface p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="label">{refeicao.horarioSugerido || 'Horario livre'}</p>
+                  <h2 className="text-lg font-bold">{refeicao.nome}</h2>
+                  {refeicao.observacoes ? <p className="text-sm text-graphite">{refeicao.observacoes}</p> : null}
                 </div>
-              ))}
-            </div>
+                <button
+                  className={refeicao.concluida ? 'btn-secondary' : 'btn-primary'}
+                  onClick={() => toggleConcluded(refeicao)}
+                >
+                  {refeicao.concluida ? <RotateCcw className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+                  {refeicao.concluida ? 'Voltar para pendente' : 'Marcar como realizada'}
+                </button>
+              </div>
 
-            <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_160px_auto]">
-              <input className="field" value={manual} onChange={(e) => setManual(e.target.value)} placeholder="Entrada manual" />
-              <input className="field" value={quantidade} onChange={(e) => setQuantidade(e.target.value)} placeholder="Quantidade" />
-              <button className="btn-secondary" onClick={() => addManual(refeicao.refeicaoId)}>
-                <Plus className="h-4 w-4" />
-                Adicionar
-              </button>
-            </div>
-          </article>
-        ))}
+              {refeicao.categorias?.length ? (
+                <div className="mt-4 grid gap-3">
+                  {refeicao.categorias.map((categoria) => (
+                    <div key={categoria.id} className="rounded-md border border-line bg-mist p-3">
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-bold">{categoria.nome}</p>
+                        <span className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-graphite">
+                          {categoria.tipoSelecao === 'escolha_uma'
+                            ? 'Escolha uma'
+                            : categoria.tipoSelecao === 'escolha_multipla'
+                              ? 'Multipla'
+                              : 'Livre'}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {categoria.opcoes.map((opcao) => {
+                          const selected = selectedOptions.has(opcao.id);
+                          const detail = [
+                            opcao.porcao,
+                            opcao.pesoValor ? `${opcao.pesoValor} ${opcao.unidade || ''}`.trim() : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' - ');
+                          return (
+                            <button
+                              key={opcao.id}
+                              className={selected ? 'btn-primary' : 'btn-secondary'}
+                              type="button"
+                              onClick={() => addOption(refeicao.refeicaoId, opcao.id)}
+                              disabled={selected}
+                              title={detail || opcao.alimento}
+                            >
+                              {selected ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                              <span>{opcao.alimento}</span>
+                              {detail ? <span className="text-xs opacity-75">{detail}</span> : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              <div className="mt-4 grid gap-2">
+                {refeicao.alimentos.map((alimento) => (
+                  <div key={alimento.id} className="flex items-center justify-between rounded-md bg-mist px-3 py-2 text-sm">
+                    <span>
+                      {alimento.descricao}
+                      {alimento.quantidadePersonalizada ? (
+                        <span className="ml-2 text-graphite">({alimento.quantidadePersonalizada})</span>
+                      ) : null}
+                    </span>
+                    <button className="text-cranberry" onClick={() => removeAlimento(alimento.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_160px_auto]">
+                <input
+                  className="field"
+                  value={draft.manual}
+                  onChange={(e) => updateDraft(refeicao.refeicaoId, 'manual', e.target.value)}
+                  placeholder="Entrada manual"
+                />
+                <input
+                  className="field"
+                  value={draft.quantidade}
+                  onChange={(e) => updateDraft(refeicao.refeicaoId, 'quantidade', e.target.value)}
+                  placeholder="Quantidade"
+                />
+                <button className="btn-secondary" onClick={() => addManual(refeicao.refeicaoId)}>
+                  <Plus className="h-4 w-4" />
+                  Adicionar
+                </button>
+              </div>
+            </article>
+          );
+        })}
       </section>
     </>
   );

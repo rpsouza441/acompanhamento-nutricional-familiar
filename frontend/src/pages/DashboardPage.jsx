@@ -1,4 +1,5 @@
 import { Droplets, Trophy, Utensils } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import PageHeader from '../components/PageHeader.jsx';
 import StateBlock from '../components/StateBlock.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -42,13 +43,14 @@ export default function DashboardPage() {
       <PageHeader title={`Ola, ${usuario.nome}`} description="Resumo do plano nutricional de hoje." />
 
       <section className="grid gap-4 md:grid-cols-3">
-        <Metric icon={Droplets} label="Agua" value={`${data.aguaConsumidaMl} ml`} detail={`${agua}% da meta`} />
-        <Metric icon={Utensils} label="Refeicoes" value={`${concluidas}/${total}`} detail={`${adesao}% de adesao`} />
+        <Metric icon={Droplets} label="Agua" value={`${data.aguaConsumidaMl} ml`} detail={`${agua}% da meta`} to="/registro" />
+        <Metric icon={Utensils} label="Refeicoes" value={`${concluidas}/${total}`} detail={`${adesao}% de adesao`} to="/registro" />
         <Metric
           icon={Trophy}
           label="Conquistas"
           value={(conquistas.data || []).filter((item) => item.desbloqueada).length}
           detail="desbloqueadas"
+          to="/conquistas"
         />
       </section>
 
@@ -60,7 +62,11 @@ export default function DashboardPage() {
           </div>
           <div className="grid gap-3">
             {data.refeicoes.map((refeicao) => (
-              <div key={refeicao.id} className="rounded-md border border-line bg-mist px-4 py-3">
+              <Link
+                key={refeicao.id}
+                to="/registro"
+                className="rounded-md border border-line bg-mist px-4 py-3 transition hover:border-forest-600 hover:bg-white"
+              >
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="font-semibold">{refeicao.nome}</p>
@@ -75,7 +81,7 @@ export default function DashboardPage() {
                     {refeicao.concluida ? 'Realizada' : 'Pendente'}
                   </span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -88,21 +94,38 @@ export default function DashboardPage() {
           <p className="mt-3 text-sm text-graphite">
             Meta do plano ativo: <strong className="text-ink">{data.metaAguaDiariaMl} ml</strong>
           </p>
+          <Link className="btn-secondary mt-4" to="/registro">
+            Registrar agua
+          </Link>
         </div>
       </section>
     </>
   );
 }
 
-function Metric({ icon: Icon, label, value, detail }) {
-  return (
-    <div className="surface p-5">
+function Metric({ icon: Icon, label, value, detail, to }) {
+  const content = (
+    <>
       <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-forest-50 text-forest-700">
         <Icon className="h-5 w-5" />
       </div>
       <p className="label">{label}</p>
       <p className="mt-1 text-2xl font-bold">{value}</p>
       <p className="text-sm text-graphite">{detail}</p>
+    </>
+  );
+
+  if (to) {
+    return (
+      <Link className="surface block p-5 transition hover:border-forest-600 hover:bg-forest-50/40" to={to}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div className="surface p-5">
+      {content}
     </div>
   );
 }
