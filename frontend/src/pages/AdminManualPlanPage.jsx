@@ -35,9 +35,18 @@ export default function AdminManualPlanPage() {
   const { usuario } = useAuth();
   const [form, setForm] = useState(initial(usuario.id));
   const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   async function submit(event) {
     event.preventDefault();
+    const localError = validateForm(form);
+    if (localError) {
+      setError({ message: localError, errors: [] });
+      setResult(null);
+      return;
+    }
+
     const payload = {
       ...form,
       metaAguaDiariaMl: Number(form.metaAguaDiariaMl),
@@ -53,8 +62,17 @@ export default function AdminManualPlanPage() {
         })),
       })),
     };
-    const { data } = await api.post('/planos/manual', payload);
-    setResult(data);
+    setSaving(true);
+    setError(null);
+    setResult(null);
+    try {
+      const { data } = await api.post('/planos/manual', payload);
+      setResult(data);
+    } catch (requestError) {
+      setError(normalizeError(requestError));
+    } finally {
+      setSaving(false);
+    }
   }
 
   function update(path, value) {
@@ -72,9 +90,32 @@ export default function AdminManualPlanPage() {
       ...current,
       refeicoes: [
         ...current.refeicoes,
-        { identificador: `refeicao_${current.refeicoes.length + 1}`, nome: '', horarioSugerido: '', ordem: current.refeicoes.length + 1, categorias: [] },
+        {
+          identificador: `refeicao_${current.refeicoes.length + 1}`,
+          nome: '',
+          horarioSugerido: '',
+          ordem: current.refeicoes.length + 1,
+          categorias: [
+            {
+              nome: '',
+              tipoSelecao: 'escolha_uma',
+              obrigatorio: true,
+              opcoes: [{ alimento: '', porcao: '', pesoValor: '', unidade: 'g' }],
+            },
+          ],
+        },
       ],
     }));
+  }
+
+  function removeMeal(mealIndex) {
+    setForm((current) => {
+      if (current.refeicoes.length <= 1) return current;
+      const refeicoes = current.refeicoes
+        .filter((_, index) => index !== mealIndex)
+        .map((refeicao, index) => ({ ...refeicao, ordem: index + 1 }));
+      return { ...current, refeicoes };
+    });
   }
 
   function addCategory(mealIndex) {
@@ -90,10 +131,30 @@ export default function AdminManualPlanPage() {
     });
   }
 
+  function removeCategory(mealIndex, categoryIndex) {
+    setForm((current) => {
+      const next = structuredClone(current);
+      const categorias = next.refeicoes[mealIndex].categorias;
+      if (categorias.length <= 1) return current;
+      categorias.splice(categoryIndex, 1);
+      return next;
+    });
+  }
+
   function addOption(mealIndex, categoryIndex) {
     setForm((current) => {
       const next = structuredClone(current);
       next.refeicoes[mealIndex].categorias[categoryIndex].opcoes.push({ alimento: '', porcao: '', pesoValor: '', unidade: 'g' });
+      return next;
+    });
+  }
+
+  function removeOption(mealIndex, categoryIndex, optionIndex) {
+    setForm((current) => {
+      const next = structuredClone(current);
+      const opcoes = next.refeicoes[mealIndex].categorias[categoryIndex].opcoes;
+      if (opcoes.length <= 1) return current;
+      opcoes.splice(optionIndex, 1);
       return next;
     });
   }
@@ -111,6 +172,17 @@ export default function AdminManualPlanPage() {
 
         {form.refeicoes.map((refeicao, mealIndex) => (
           <section key={mealIndex} className="surface p-5">
+            <div className="mb-3 flex justify-end">
+              <button
+                className="btn-secondary"
+                type="button"
+                onClick={() => removeMeal(mealIndex)}
+                disabled={form.refeicoes.length <= 1}
+              >
+                <Trash2 className="h-4 w-4" />
+                Refeicao
+              </button>
+            </div>
             <div className="grid gap-3 md:grid-cols-4">
               <input className="field" placeholder="Identificador" value={refeicao.identificador} onChange={(e) => update(['refeicoes', mealIndex, 'identificador'], e.target.value)} />
               <input className="field" placeholder="Nome" value={refeicao.nome} onChange={(e) => update(['refeicoes', mealIndex, 'nome'], e.target.value)} />
@@ -132,6 +204,17 @@ export default function AdminManualPlanPage() {
                       Opcao
                     </button>
                   </div>
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      className="btn-secondary"
+                      type="button"
+                      onClick={() => removeCategory(mealIndex, categoryIndex)}
+                      disabled={refeicao.categorias.length <= 1}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Categoria
+                    </button>
+                  </div>
                   <div className="mt-3 grid gap-2">
                     {categoria.opcoes.map((opcao, optionIndex) => (
                       <div key={optionIndex} className="grid gap-2 md:grid-cols-[1fr_1fr_100px_90px_auto]">
@@ -139,7 +222,14 @@ export default function AdminManualPlanPage() {
                         <input className="field" placeholder="Porcao" value={opcao.porcao} onChange={(e) => update(['refeicoes', mealIndex, 'categorias', categoryIndex, 'opcoes', optionIndex, 'porcao'], e.target.value)} />
                         <input className="field" type="number" placeholder="Peso" value={opcao.pesoValor} onChange={(e) => update(['refeicoes', mealIndex, 'categorias', categoryIndex, 'opcoes', optionIndex, 'pesoValor'], e.target.value)} />
                         <input className="field" placeholder="Unid." value={opcao.unidade} onChange={(e) => update(['refeicoes', mealIndex, 'categorias', categoryIndex, 'opcoes', optionIndex, 'unidade'], e.target.value)} />
-                        <button className="btn-secondary" type="button" disabled>
+                        <button
+                          className="btn-secondary px-3"
+                          type="button"
+                          onClick={() => removeOption(mealIndex, categoryIndex, optionIndex)}
+                          disabled={categoria.opcoes.length <= 1}
+                          title="Remover opcao"
+                          aria-label="Remover opcao"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
@@ -160,13 +250,57 @@ export default function AdminManualPlanPage() {
             <Plus className="h-4 w-4" />
             Refeicao
           </button>
-          <button className="btn-primary">
+          <button className="btn-primary" disabled={saving}>
             <Save className="h-4 w-4" />
-            Salvar plano
+            {saving ? 'Salvando...' : 'Salvar plano'}
           </button>
         </div>
+        {error ? <ErrorBlock error={error} /> : null}
         {result ? <div className="surface p-4 text-sm font-semibold">Plano {result.plano.id} salvo com sucesso.</div> : null}
       </form>
     </>
+  );
+}
+
+function validateForm(form) {
+  if (!form.refeicoes.length) return 'Inclua pelo menos uma refeicao.';
+  for (const refeicao of form.refeicoes) {
+    if (!refeicao.identificador.trim() || !refeicao.nome.trim()) {
+      return 'Preencha identificador e nome de todas as refeicoes.';
+    }
+    if (!refeicao.categorias.length) return 'Cada refeicao deve ter pelo menos uma categoria.';
+    for (const categoria of refeicao.categorias) {
+      if (!categoria.nome.trim()) return 'Preencha o nome de todas as categorias.';
+      if (!categoria.opcoes.length) return 'Cada categoria deve ter pelo menos uma opcao.';
+      if (categoria.opcoes.some((opcao) => !opcao.alimento.trim())) {
+        return 'Preencha o alimento de todas as opcoes.';
+      }
+    }
+  }
+  return null;
+}
+
+function normalizeError(error) {
+  const data = error.response?.data;
+  return {
+    message: data?.message || 'Nao foi possivel salvar o plano.',
+    errors: data?.errors || [],
+  };
+}
+
+function ErrorBlock({ error }) {
+  return (
+    <div className="surface border-red-200 bg-red-50 p-4 text-sm text-red-900">
+      <p className="font-semibold">{error.message}</p>
+      {error.errors.length ? (
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          {error.errors.map((item) => (
+            <li key={`${item.field}-${item.message}`}>
+              {item.field}: {item.message}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 }

@@ -32,6 +32,10 @@ public class JwtService {
     return claims(token).getSubject();
   }
 
+  public Instant getExpiration(String token) {
+    return claims(token).getExpiration().toInstant();
+  }
+
   public boolean isRefreshToken(String token) {
     return "refresh".equals(claims(token).get("token_type", String.class));
   }

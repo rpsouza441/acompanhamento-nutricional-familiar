@@ -61,8 +61,18 @@ Setup em 3 comandos:
 
 ```bash
 cp .env.example .env
-# edite .env e troque senhas/JWT_SECRET se necessario
+# edite .env e troque senhas/JWT_SECRET antes de publicar o ambiente
 docker compose up -d --build
+```
+
+Variaveis usadas pelo Compose:
+
+```env
+DB_ROOT_PASSWORD=nutritracker_root_2024
+DB_USER=nutritracker
+DB_PASSWORD=nutritracker_pass_2024
+JWT_SECRET=change-this-secret-to-a-strong-256-bit-value-before-production
+APP_CORS_ALLOWED_ORIGINS=http://localhost:18880,http://localhost:13017
 ```
 
 Acessos padrao do Compose:
@@ -86,7 +96,14 @@ senha: password
 
 ## Desenvolvimento Local
 
-Backend:
+Backend local:
+
+Pre-requisitos:
+
+- Java 21
+- `JAVA_HOME` apontando para a instalacao do Java 21
+- MariaDB acessivel em `localhost:3306` com banco `nutritracker`
+- Schema e seed aplicados a partir de `database/01-schema.sql` e `database/02-sample-data.sql`
 
 ```bash
 cd backend
@@ -102,7 +119,22 @@ cd backend
 
 O backend sobe em `http://localhost:18080`.
 
-Frontend:
+Variaveis opcionais do backend local, quando quiser sobrescrever os valores de `application.yml`:
+
+```env
+SPRING_DATASOURCE_URL=jdbc:mariadb://localhost:3306/nutritracker
+SPRING_DATASOURCE_USERNAME=nutritracker
+SPRING_DATASOURCE_PASSWORD=nutritracker_pass_2024
+JWT_SECRET=change-this-secret-to-a-strong-256-bit-value-before-production
+APP_CORS_ALLOWED_ORIGINS=http://localhost:13017,http://localhost:18880
+```
+
+Frontend local:
+
+Pre-requisitos:
+
+- Node.js 22 LTS ou versao compativel com Vite 5
+- npm
 
 ```bash
 cd frontend
@@ -141,12 +173,27 @@ cd backend
 .\mvnw.cmd test
 ```
 
+Testes de integracao com MariaDB via Testcontainers:
+
+```bash
+cd backend
+./mvnw verify -Pintegration
+```
+
+Esse fluxo requer Docker disponivel.
+
 Frontend:
 
 ```bash
 cd frontend
+npm install
 npm run build
 ```
+
+CI:
+
+- O workflow `.github/workflows/ci.yml` executa `./mvnw verify -Pintegration` no backend com Java 21.
+- O mesmo workflow executa `npm ci` e `npm run build` no frontend com Node.js 22.
 
 ## Funcionalidades Implementadas
 
@@ -216,15 +263,23 @@ Conquistas e relatorios:
 - `GET /api/relatorios?usuarioId=&inicio=&fim=`
 - `GET /api/relatorios/pdf?usuarioId=&inicio=&fim=`
 
+Observacao de autorizacao:
+
+- `ADMIN` pode consultar e alterar recursos de qualquer usuario.
+- `USER` so pode acessar os proprios dados. Quando o endpoint aceitar `usuarioId`, o backend valida esse valor contra o usuario autenticado; em consultas do proprio usuario, o frontend pode omitir `usuarioId` nos endpoints que aceitam esse parametro como opcional.
+
 ## Importacao de Plano
 
 Endpoint:
 
 ```text
-POST /api/planos/importar?usuarioId=1
+POST /api/planos/importar
 Content-Type: multipart/form-data
+Authorization: Bearer <access-token>
 Campo do arquivo: file
 ```
+
+O plano importado e vinculado ao usuario autenticado pelo JWT. O endpoint nao usa `usuarioId` na query.
 
 Exemplo de estrutura:
 
@@ -299,10 +354,10 @@ Concluido:
 - Docker Compose com MariaDB, backend, frontend e Nginx.
 - Portas nao convencionais configuradas.
 - Testes unitarios de servicos do backend.
+- Testes de integracao do backend com MariaDB via Testcontainers.
 - Build de producao do frontend.
 
 Pendencias conhecidas:
 
 - Validacao final do Docker Compose em ambiente com Docker instalado.
-- Testes de integracao com banco.
 - Ajustes finos de UX apos validar as telas com dados reais.

@@ -8,6 +8,18 @@ CREATE TABLE IF NOT EXISTS usuarios (
   criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  usuario_id BIGINT NOT NULL,
+  token_hash CHAR(64) NOT NULL UNIQUE,
+  expira_em TIMESTAMP NOT NULL,
+  revogado_em TIMESTAMP NULL,
+  criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_refresh_tokens_usuario (usuario_id),
+  INDEX idx_refresh_tokens_expira_em (expira_em),
+  FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+);
+
 CREATE TABLE IF NOT EXISTS planos_nutricionais (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   usuario_id BIGINT NOT NULL,

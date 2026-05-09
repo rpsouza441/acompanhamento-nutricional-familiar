@@ -1,8 +1,11 @@
 package com.nutritracker.exception;
 
 import java.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -10,6 +13,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+  private static final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
   @ExceptionHandler(BusinessException.class)
   public ResponseEntity<ApiError> business(BusinessException exception) {
     return build(HttpStatus.BAD_REQUEST, exception.getMessage(), java.util.List.of());
@@ -34,9 +39,18 @@ public class GlobalExceptionHandler {
     return build(HttpStatus.BAD_REQUEST, exception.getMessage(), exception.getErrors());
   }
 
+  @ExceptionHandler(AccessDeniedException.class)
+  public ResponseEntity<ApiError> accessDenied() {
+    return build(HttpStatus.FORBIDDEN, "Acesso negado", java.util.List.of());
+  }
+
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ApiError> generic(Exception exception) {
-    return build(HttpStatus.INTERNAL_SERVER_ERROR, exception.getMessage(), java.util.List.of());
+    LOGGER.error("Erro interno inesperado", exception);
+    return build(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "Erro interno inesperado. Tente novamente mais tarde.",
+        java.util.List.of());
   }
 
   private ResponseEntity<ApiError> build(

@@ -14,6 +14,7 @@ import ReportsPage from './pages/ReportsPage.jsx';
 import AdminUsersPage from './pages/AdminUsersPage.jsx';
 import AdminImportPlanPage from './pages/AdminImportPlanPage.jsx';
 import AdminManualPlanPage from './pages/AdminManualPlanPage.jsx';
+import AccessDeniedPage from './pages/AccessDeniedPage.jsx';
 import './styles.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -35,9 +36,31 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="historico" element={<HistoryPage />} />
             <Route path="conquistas" element={<AchievementsPage />} />
             <Route path="relatorios" element={<ReportsPage />} />
-            <Route path="admin/usuarios" element={<AdminUsersPage />} />
-            <Route path="admin/importar-plano" element={<AdminImportPlanPage />} />
-            <Route path="admin/plano-manual" element={<AdminManualPlanPage />} />
+            <Route path="acesso-negado" element={<AccessDeniedPage />} />
+            <Route
+              path="admin/usuarios"
+              element={
+                <ProtectedRoute roles={['ADMIN']}>
+                  <AdminUsersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="admin/importar-plano"
+              element={
+                <ProtectedRoute roles={['ADMIN']}>
+                  <AdminImportPlanPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="admin/plano-manual"
+              element={
+                <ProtectedRoute roles={['ADMIN']}>
+                  <AdminManualPlanPage />
+                </ProtectedRoute>
+              }
+            />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -19,6 +19,12 @@ export function AuthProvider({ children }) {
   const [auth, setAuth] = useState(readStoredAuth);
   const [ready, setReady] = useState(false);
 
+  const clearAuth = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setAuth({});
+    navigate('/login', { replace: true });
+  };
+
   useEffect(() => {
     configureAuthInterceptor({
       getTokens: () => ({
@@ -31,11 +37,7 @@ export function AuthProvider({ children }) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
         setAuth(next);
       },
-      logout: () => {
-        localStorage.removeItem(STORAGE_KEY);
-        setAuth({});
-        navigate('/login', { replace: true });
-      },
+      logout: clearAuth,
     });
     setReady(true);
   }, [navigate]);
@@ -52,10 +54,15 @@ export function AuthProvider({ children }) {
         setAuth(data);
         return data;
       },
-      logout() {
-        localStorage.removeItem(STORAGE_KEY);
-        setAuth({});
-        navigate('/login', { replace: true });
+      async logout() {
+        const { refreshToken } = readStoredAuth();
+        try {
+          if (refreshToken) {
+            await api.post('/auth/logout', { refreshToken });
+          }
+        } finally {
+          clearAuth();
+        }
       },
     }),
     [auth, navigate, ready],

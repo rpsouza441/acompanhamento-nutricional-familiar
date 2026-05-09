@@ -4,9 +4,11 @@ import com.nutritracker.dto.AlimentoConsumidoRequest;
 import com.nutritracker.dto.ConcluirRefeicaoRequest;
 import com.nutritracker.dto.RegistroResponse;
 import com.nutritracker.dto.RegistroUpdateRequest;
+import com.nutritracker.model.Usuario;
 import com.nutritracker.service.RegistroService;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,34 +29,44 @@ public class RegistroController {
   }
 
   @GetMapping
-  public RegistroResponse buscarOuCriar(@RequestParam Long usuarioId, @RequestParam LocalDate data) {
-    return registroService.buscarOuCriar(usuarioId, data);
+  public RegistroResponse buscarOuCriar(
+      @RequestParam(required = false) Long usuarioId,
+      @RequestParam LocalDate data,
+      @AuthenticationPrincipal Usuario autenticado) {
+    return registroService.buscarOuCriar(autenticado, usuarioId, data);
   }
 
   @PutMapping("/{id}")
   public RegistroResponse atualizar(
-      @PathVariable Long id, @Valid @RequestBody RegistroUpdateRequest request) {
-    return registroService.atualizar(id, request);
+      @PathVariable Long id,
+      @Valid @RequestBody RegistroUpdateRequest request,
+      @AuthenticationPrincipal Usuario autenticado) {
+    return registroService.atualizar(autenticado, id, request);
   }
 
   @PostMapping("/{id}/refeicoes/{refeicaoId}/concluir")
   public RegistroResponse concluirRefeicao(
       @PathVariable Long id,
       @PathVariable Long refeicaoId,
-      @RequestBody ConcluirRefeicaoRequest request) {
-    return registroService.concluirRefeicao(id, refeicaoId, request);
+      @RequestBody ConcluirRefeicaoRequest request,
+      @AuthenticationPrincipal Usuario autenticado) {
+    return registroService.concluirRefeicao(autenticado, id, refeicaoId, request);
   }
 
   @PostMapping("/{id}/refeicoes/{refeicaoId}/alimentos")
   public RegistroResponse adicionarAlimento(
       @PathVariable Long id,
       @PathVariable Long refeicaoId,
-      @Valid @RequestBody AlimentoConsumidoRequest request) {
-    return registroService.adicionarAlimento(id, refeicaoId, request);
+      @Valid @RequestBody AlimentoConsumidoRequest request,
+      @AuthenticationPrincipal Usuario autenticado) {
+    return registroService.adicionarAlimento(autenticado, id, refeicaoId, request);
   }
 
   @DeleteMapping("/{registroId}/alimentos/{alimentoId}")
-  public RegistroResponse removerAlimento(@PathVariable Long registroId, @PathVariable Long alimentoId) {
-    return registroService.removerAlimento(registroId, alimentoId);
+  public RegistroResponse removerAlimento(
+      @PathVariable Long registroId,
+      @PathVariable Long alimentoId,
+      @AuthenticationPrincipal Usuario autenticado) {
+    return registroService.removerAlimento(autenticado, registroId, alimentoId);
   }
 }

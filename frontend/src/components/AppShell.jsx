@@ -19,13 +19,14 @@ const links = [
   { to: '/historico', label: 'Historico', icon: CalendarDays },
   { to: '/conquistas', label: 'Conquistas', icon: Award },
   { to: '/relatorios', label: 'Relatorios', icon: BarChart3 },
-  { to: '/admin/usuarios', label: 'Usuarios', icon: UserCog },
-  { to: '/admin/importar-plano', label: 'Importar', icon: FileJson },
-  { to: '/admin/plano-manual', label: 'Plano manual', icon: ClipboardList },
+  { to: '/admin/usuarios', label: 'Usuarios', icon: UserCog, roles: ['ADMIN'] },
+  { to: '/admin/importar-plano', label: 'Importar', icon: FileJson, roles: ['ADMIN'] },
+  { to: '/admin/plano-manual', label: 'Plano manual', icon: ClipboardList, roles: ['ADMIN'] },
 ];
 
 export default function AppShell() {
   const { usuario, logout } = useAuth();
+  const visibleLinks = links.filter((item) => !item.roles || item.roles.includes(usuario?.role));
 
   return (
     <div className="min-h-screen text-ink">
@@ -41,7 +42,7 @@ export default function AppShell() {
         </div>
 
         <nav className="space-y-1">
-          {links.map((item) => (
+          {visibleLinks.map((item) => (
             <NavItem key={item.to} {...item} />
           ))}
         </nav>
@@ -64,7 +65,7 @@ export default function AppShell() {
             </button>
           </div>
           <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:hidden">
-            {links.slice(0, 5).map((item) => (
+            {visibleLinks.map((item) => (
               <NavItem key={item.to} compact {...item} />
             ))}
           </nav>

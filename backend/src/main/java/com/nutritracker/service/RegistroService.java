@@ -10,8 +10,10 @@ import com.nutritracker.dto.RegistroUpdateRequest;
 import com.nutritracker.dto.RefeicaoRegistradaResponse;
 import com.nutritracker.exception.BusinessException;
 import com.nutritracker.model.AlimentoConsumido;
+import com.nutritracker.model.OpcaoAlimento;
 import com.nutritracker.model.RefeicaoRegistrada;
 import com.nutritracker.model.RegistroDiario;
+import com.nutritracker.model.Usuario;
 import com.nutritracker.repository.AlimentoConsumidoRepository;
 import com.nutritracker.repository.CategoriaRefeicaoRepository;
 import com.nutritracker.repository.OpcaoAlimentoRepository;
@@ -36,6 +38,7 @@ public class RegistroService {
   private final OpcaoAlimentoRepository opcaoRepository;
   private final AlimentoConsumidoRepository alimentoRepository;
   private final ConquistaService conquistaService;
+  private final AuthorizationService authorizationService;
 
   public RegistroService(
       UsuarioRepository usuarioRepository,
@@ -46,7 +49,8 @@ public class RegistroService {
       CategoriaRefeicaoRepository categoriaRepository,
       OpcaoAlimentoRepository opcaoRepository,
       AlimentoConsumidoRepository alimentoRepository,
-      ConquistaService conquistaService) {
+      ConquistaService conquistaService,
+      AuthorizationService authorizationService) {
     this.usuarioRepository = usuarioRepository;
     this.planoRepository = planoRepository;
     this.refeicaoRepository = refeicaoRepository;
@@ -56,21 +60,24 @@ public class RegistroService {
     this.opcaoRepository = opcaoRepository;
     this.alimentoRepository = alimentoRepository;
     this.conquistaService = conquistaService;
+    this.authorizationService = authorizationService;
   }
 
   @Transactional
-  public RegistroResponse buscarOuCriar(Long usuarioId, LocalDate data) {
+  public RegistroResponse buscarOuCriar(Usuario autenticado, Long usuarioId, LocalDate data) {
+    Long usuarioAutorizadoId = authorizationService.resolveUsuarioId(autenticado, usuarioId);
     RegistroDiario registro =
         registroRepository
-            .findByUsuarioIdAndDataRegistro(usuarioId, data)
-            .orElseGet(() -> criarRegistro(usuarioId, data));
+            .findByUsuarioIdAndDataRegistro(usuarioAutorizadoId, data)
+            .orElseGet(() -> criarRegistro(usuarioAutorizadoId, data));
     sincronizarComPlanoAtivo(registro);
     return toResponse(registro);
   }
 
   @Transactional
-  public RegistroResponse atualizar(Long id, RegistroUpdateRequest request) {
+  public RegistroResponse atualizar(Usuario autenticado, Long id, RegistroUpdateRequest request) {
     RegistroDiario registro = buscarRegistro(id);
+    authorizationService.requireOwnerOrAdmin(autenticado, registro.getUsuario().getId());
     if (request.aguaConsumidaMl() != null) {
       registro.setAguaConsumidaMl(request.aguaConsumidaMl());
     }
@@ -82,8 +89,9 @@ public class RegistroService {
 
   @Transactional
   public RegistroResponse concluirRefeicao(
-      Long registroId, Long refeicaoId, ConcluirRefeicaoRequest request) {
+      Usuario autenticado, Long registroId, Long refeicaoId, ConcluirRefeicaoRequest request) {
     RegistroDiario registro = buscarRegistro(registroId);
+    authorizationService.requireOwnerOrAdmin(autenticado, registro.getUsuario().getId());
     RefeicaoRegistrada refeicao =
         refeicaoRegistradaRepository
             .findByRegistroDiarioIdAndRefeicaoId(registroId, refeicaoId)
@@ -104,8 +112,9 @@ public class RegistroService {
 
   @Transactional
   public RegistroResponse adicionarAlimento(
-      Long registroId, Long refeicaoId, AlimentoConsumidoRequest request) {
+      Usuario autenticado, Long registroId, Long refeicaoId, AlimentoConsumidoRequest request) {
     RegistroDiario registro = buscarRegistro(registroId);
+    authorizationService.requireOwnerOrAdmin(autenticado, registro.getUsuario().getId());
     RefeicaoRegistrada refeicao =
         refeicaoRegistradaRepository
             .findByRegistroDiarioIdAndRefeicaoId(registroId, refeicaoId)
@@ -118,10 +127,14 @@ public class RegistroService {
     AlimentoConsumido alimento = new AlimentoConsumido();
     alimento.setRefeicaoRegistrada(refeicao);
     if (request.opcaoId() != null) {
-      alimento.setOpcao(
+      OpcaoAlimento opcao =
           opcaoRepository
               .findById(request.opcaoId())
-              .orElseThrow(() -> new BusinessException("Opcao de alimento nao encontrada")));
+              .orElseThrow(() -> new BusinessException("Opcao de alimento nao encontrada"));
+      if (!opcao.getCategoria().getRefeicao().getId().equals(refeicao.getRefeicao().getId())) {
+        throw new BusinessException("Opcao de alimento nao pertence a refeicao");
+      }
+      alimento.setOpcao(opcao);
     }
     alimento.setDescricaoManual(request.descricaoManual());
     alimento.setQuantidadePersonalizada(request.quantidadePersonalizada());
@@ -130,12 +143,17 @@ public class RegistroService {
   }
 
   @Transactional
-  public RegistroResponse removerAlimento(Long registroId, Long alimentoId) {
+  public RegistroResponse removerAlimento(Usuario autenticado, Long registroId, Long alimentoId) {
     RegistroDiario registro = buscarRegistro(registroId);
-    if (!alimentoRepository.existsById(alimentoId)) {
-      throw new BusinessException("Alimento consumido nao encontrado");
+    authorizationService.requireOwnerOrAdmin(autenticado, registro.getUsuario().getId());
+    AlimentoConsumido alimento =
+        alimentoRepository
+            .findById(alimentoId)
+            .orElseThrow(() -> new BusinessException("Alimento consumido nao encontrado"));
+    if (!alimento.getRefeicaoRegistrada().getRegistroDiario().getId().equals(registroId)) {
+      throw new BusinessException("Alimento consumido nao pertence ao registro");
     }
-    alimentoRepository.deleteById(alimentoId);
+    alimentoRepository.delete(alimento);
     return toResponse(registro);
   }
 
